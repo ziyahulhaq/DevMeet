@@ -1,14 +1,22 @@
 import ExploreBtn from "@/components/ExploreBtn";
 import EventCard from "@/components/EventCard";
 import {IEvent} from "@/database";
-import {getEvents} from "@/lib/actions/event.actions";
-import {connection} from "next/server";
+// import {getEvents} from "@/lib/actions/event.actions";
+// import {connection} from "next/server";
 import {Suspense} from "react";
+import {cacheLife} from "next/cache";
+
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
+
 
 const FeaturedEvents = async () => {
-    await connection();
+       'use cache';
+    cacheLife('hours')
+    const response = await fetch(`${BASE_URL}/api/events`);
+    const { events } = await response.json();
+    // await connection();
 
-    const events = await getEvents();
+    // const events = await getEvents();
 
     return (
         <ul className="events">
