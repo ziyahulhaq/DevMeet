@@ -1,14 +1,49 @@
 'use server';
 
-import Event from '@/database/event.model';
-import connectDB from "@/lib/mongodb";
+import { mapEventRow } from "@/database";
+import pool from "@/lib/db";
+
+export const getEvents = async () => {
+    const result = await pool.query("SELECT * FROM events ORDER BY id DESC");
+
+    return result.rows.map(mapEventRow);
+}
+
+export const getEventBySlug = async (slug: string) => {
+    if (!slug || slug.trim() === "") {
+        return null;
+    }
+
+    const result = await pool.query(
+        "SELECT * FROM events WHERE slug = $1",
+        [slug.trim().toLowerCase()]
+    );
+
+    return result.rows[0] ? mapEventRow(result.rows[0]) : null;
+}
 
 export const getSimilarEventsBySlug = async (slug: string) => {
     try {
-        await connectDB();
-        const event = await Event.findOne({ slug });
+        const eventResult = await pool.query(
+            "SELECT id, tags FROM events WHERE slug = $1",
+            [slug]
+        );
+        const event = eventResult.rows[0] ? mapEventRow(eventResult.rows[0]) : null;
 
-        return await Event.find({ _id: { $ne: event._id }, tags: { $in: event.tags } }).lean();
+        if (!event || event.tags.length === 0) {
+            return [];
+        }
+
+        const similarEvents = await pool.query(
+            `SELECT *
+             FROM events
+             WHERE id <> $1
+               AND to_jsonb(tags) ?| $2::text[]
+             ORDER BY id DESC`,
+            [event.id, event.tags]
+        );
+
+        return similarEvents.rows.map(mapEventRow);
     } catch {
         return [];
     }

@@ -3,9 +3,9 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 
-import Event from "@/database/event.model";
 import cloudinary from "@/lib/cloudinary";
-import connectDB from "@/lib/mongodb";
+import pool from "@/lib/db";
+import { mapEventRow } from "@/database";
 
 const REQUIRED_TEXT_FIELDS = [
   "title",
@@ -50,6 +50,14 @@ function getFileExtension(file: File) {
 function getTextField(formData: FormData, key: string) {
   const value = formData.get(key);
   return typeof value === "string" ? value.trim() : "";
+}
+
+function createSlug(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 function normalizeTags(value: string) {
@@ -172,10 +180,10 @@ async function uploadEventImage(buffer: Buffer) {
 
     const uploadPreset = process.env.CLOUDINARY_UPLOAD_PRESET;
     const stream = uploadPreset
-      ? cloudinary.uploader.unsigned_upload_stream(uploadPreset, onUploadComplete, {
+      ? cloudinary.uploader.unsigned_upload_stream(uploadPreset, {
           resource_type: "image",
           folder: "DevEvent",
-        })
+        }, onUploadComplete)
       : cloudinary.uploader.upload_stream(
           { resource_type: "image", folder: "DevEvent" },
           onUploadComplete
@@ -242,8 +250,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message }, { status: 400 });
     }
 
-    await connectDB();
-
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
@@ -259,21 +265,46 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const createdEvent = await Event.create({
-      title: getTextField(formData, "title"),
-      description: getTextField(formData, "description"),
-      overview: getTextField(formData, "overview"),
-      venue: getTextField(formData, "venue"),
-      location: getTextField(formData, "location"),
-      date: getTextField(formData, "date"),
-      time: getTextField(formData, "time"),
-      mode: getTextField(formData, "mode"),
-      audience: getTextField(formData, "audience"),
-      organizer: getTextField(formData, "organizer"),
-      image,
-      tags,
-      agenda,
-    });
+    const title = getTextField(formData, "title");
+    const slug = getTextField(formData, "slug") || createSlug(title);
+    const result = await pool.query(
+      `INSERT INTO events (
+        title,
+        slug,
+        description,
+        overview,
+        venue,
+        location,
+        date,
+        time,
+        mode,
+        audience,
+        organizer,
+        image,
+        tags,
+        agenda
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      RETURNING *`,
+      [
+        title,
+        slug,
+        getTextField(formData, "description"),
+        getTextField(formData, "overview"),
+        getTextField(formData, "venue"),
+        getTextField(formData, "location"),
+        getTextField(formData, "date"),
+        getTextField(formData, "time"),
+        getTextField(formData, "mode"),
+        getTextField(formData, "audience"),
+        getTextField(formData, "organizer"),
+        image,
+        tags,
+        agenda,
+      ]
+    );
+
+    const createdEvent = mapEventRow(result.rows[0]);
 
     return NextResponse.json(
       { message: "Event created successfully", event: createdEvent },
@@ -293,9 +324,8 @@ export async function POST(req: NextRequest) {
 
 export async function GET() {
   try {
-    await connectDB();
-
-    const events = await Event.find().sort({ createdAt: -1 });
+    const result = await pool.query("SELECT * FROM events ORDER BY id DESC");
+    const events = result.rows.map(mapEventRow);
 
     return NextResponse.json(
       { message: "Events fetched successfully", events },

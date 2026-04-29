@@ -1,14 +1,14 @@
 'use server';
 
-import Booking from '@/database/booking.model';
+import pool from "@/lib/db";
 
-import connectDB from "@/lib/mongodb";
-
-export const createBooking = async ({ eventId, slug, email }: { eventId: string; slug: string; email: string; }) => {
+export const createBooking = async ({ eventId, slug, email }: { eventId: number; slug: string; email: string; }) => {
     try {
-        await connectDB();
-
-        await Booking.create({ eventId, slug, email });
+        await pool.query(
+            `INSERT INTO bookings (event_id, slug, email)
+             VALUES ($1, $2, $3)`,
+            [eventId, slug, email]
+        );
 
         return { success: true };
     } catch (e) {
