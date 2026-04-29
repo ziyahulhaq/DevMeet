@@ -16,6 +16,7 @@
     "mongoose": "^8.19.2",
     "next": "16.0.0",
     "ogl": "^1.0.11",
+    "pg": "^8.20.0",
     "posthog-js": "^1.279.3",
     "posthog-node": "^5.10.3",
     "react": "19.2.0",
@@ -25,6 +26,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^24",
+    "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
