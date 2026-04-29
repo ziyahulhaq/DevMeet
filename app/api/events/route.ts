@@ -145,9 +145,8 @@ async function saveImageLocally(buffer: Buffer, file: File) {
 function shouldUseLocalUploadFallback(error: unknown) {
   const isExplicitlyEnabled =
     process.env.ALLOW_LOCAL_UPLOAD_FALLBACK === "true";
-  const isDevelopment = process.env.NODE_ENV !== "production";
 
-  if (!isExplicitlyEnabled && !isDevelopment) {
+  if (!isExplicitlyEnabled) {
     return false;
   }
 
@@ -258,6 +257,8 @@ export async function POST(req: NextRequest) {
     try {
       image = await uploadEventImage(buffer);
     } catch (error) {
+      console.error("Cloudinary upload failed:", getCloudinaryErrorDetails(error));
+
       if (shouldUseLocalUploadFallback(error)) {
         image = await saveImageLocally(buffer, file);
       } else {
