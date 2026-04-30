@@ -1,7 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
-import { randomUUID } from "node:crypto";
 
 import cloudinary from "@/lib/cloudinary";
 import pool from "@/lib/db";
@@ -25,27 +22,6 @@ type CloudinaryError = {
   message?: string;
   name?: string;
 };
-
-function getFileExtension(file: File) {
-  const extensionFromName = path.extname(file.name).toLowerCase();
-
-  if (extensionFromName) {
-    return extensionFromName;
-  }
-
-  switch (file.type) {
-    case "image/png":
-      return ".png";
-    case "image/jpeg":
-      return ".jpg";
-    case "image/webp":
-      return ".webp";
-    case "image/gif":
-      return ".gif";
-    default:
-      return ".bin";
-  }
-}
 
 function getTextField(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -132,32 +108,6 @@ function getCloudinaryErrorDetails(error: unknown) {
   };
 }
 
-async function saveImageLocally(buffer: Buffer, file: File) {
-  const uploadsDir = path.join(process.cwd(), "public", "uploads", "events");
-  const filename = `${Date.now()}-${randomUUID()}${getFileExtension(file)}`;
-
-  await mkdir(uploadsDir, { recursive: true });
-  await writeFile(path.join(uploadsDir, filename), buffer);
-
-  return `/uploads/events/${filename}`;
-}
-
-function shouldUseLocalUploadFallback(error: unknown) {
-  const isExplicitlyEnabled =
-    process.env.ALLOW_LOCAL_UPLOAD_FALLBACK === "true";
-
-  if (!isExplicitlyEnabled) {
-    return false;
-  }
-
-  if (!error || typeof error !== "object") {
-    return false;
-  }
-
-  const cloudinaryError = error as CloudinaryError;
-  return cloudinaryError.http_code === 403;
-}
-
 async function uploadEventImage(buffer: Buffer) {
   return new Promise<string>((resolve, reject) => {
     const onUploadComplete = (
@@ -171,6 +121,11 @@ async function uploadEventImage(buffer: Buffer) {
 
       if (!result?.secure_url) {
         reject(new Error("Cloudinary upload completed without a secure URL."));
+        return;
+      }
+
+      if (!result.secure_url.startsWith("https://res.cloudinary.com/")) {
+        reject(new Error("Cloudinary returned an unexpected image URL."));
         return;
       }
 
@@ -258,12 +213,7 @@ export async function POST(req: NextRequest) {
       image = await uploadEventImage(buffer);
     } catch (error) {
       console.error("Cloudinary upload failed:", getCloudinaryErrorDetails(error));
-
-      if (shouldUseLocalUploadFallback(error)) {
-        image = await saveImageLocally(buffer, file);
-      } else {
-        throw error;
-      }
+      throw error;
     }
 
     const title = getTextField(formData, "title");

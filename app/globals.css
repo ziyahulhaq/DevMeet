@@ -254,6 +254,10 @@
     #book-event {
         @apply flex flex-col gap-6;
 
+        .message-icon-link {
+            @apply flex size-9 shrink-0 items-center justify-center rounded-full border border-primary/40 bg-dark-200 text-primary transition hover:bg-primary hover:text-black;
+        }
+
         form {
             @apply flex flex-col gap-6;
 
@@ -268,6 +272,90 @@
             button {
                 @apply bg-primary hover:bg-primary/90 w-full cursor-pointer items-center justify-center rounded-[6px] px-4 py-2.5 text-lg font-semibold text-black;
             }
+        }
+    }
+
+    #messages-page {
+        @apply fixed inset-0 z-[100] flex h-screen w-screen overflow-hidden bg-background;
+        background:
+            radial-gradient(circle at 90% 85%, rgba(89, 222, 202, 0.18), transparent 30%),
+            radial-gradient(circle at 35% 20%, rgba(148, 234, 255, 0.14), transparent 36%),
+            linear-gradient(115deg, #030708 0%, #0d161a 45%, #182830 100%);
+
+        .messages-sidebar {
+            @apply w-[220px] shrink-0 border-r border-dark-200 bg-dark-100/95 backdrop-blur-xl max-sm:w-[88px];
+        }
+
+        .messages-brand {
+            @apply flex h-20 items-center gap-3 border-b border-white/10 px-6 max-sm:justify-center max-sm:px-3;
+
+            span {
+                @apply text-2xl font-bold italic tracking-normal text-white max-sm:hidden;
+            }
+        }
+
+        .messages-avatar {
+            @apply ml-auto flex size-8 items-center justify-center rounded-full border border-primary/40 bg-dark-200 text-sm font-bold text-primary shadow-[0_0_14px_rgba(89,222,202,0.25)] max-sm:hidden;
+        }
+
+        .messages-back {
+            @apply mx-4 mt-5 flex h-11 items-center gap-2 rounded-[6px] border border-dark-200 px-4 text-light-100 transition hover:border-primary/50 hover:bg-dark-200 hover:text-primary max-sm:mx-auto max-sm:size-11 max-sm:justify-center max-sm:px-0;
+
+            span {
+                @apply max-sm:hidden;
+            }
+        }
+
+        .messages-workspace {
+            @apply relative flex min-h-full flex-1 items-center justify-center p-8 max-sm:p-4;
+        }
+
+        .chat-card {
+            @apply flex h-[min(720px,calc(100vh-64px))] w-full max-w-4xl flex-col overflow-hidden rounded-[8px] border border-dark-200 bg-dark-100/90 shadow-[0_4px_40px_0_rgba(0,0,0,0.4)] backdrop-blur-xl;
+        }
+
+        .chat-header {
+            @apply flex items-center justify-between gap-4 border-b border-dark-200 px-6 py-5 max-sm:px-4;
+
+            h1 {
+                @apply bg-none text-xl font-bold text-white;
+            }
+
+            span {
+                @apply text-sm text-light-200;
+            }
+        }
+
+        .chat-status {
+            @apply rounded-[6px] border border-red-400/30 bg-red-400/10 px-3 py-1 text-xs font-semibold text-red-200;
+        }
+
+        .chat-status.connected {
+            @apply border-primary/40 bg-primary/10 text-primary;
+        }
+
+        .chat-messages {
+            @apply flex flex-1 flex-col gap-3 overflow-y-auto px-6 py-5 max-sm:px-4;
+        }
+
+        .chat-empty {
+            @apply m-auto max-w-sm text-center text-base text-light-200;
+        }
+
+        .chat-bubble {
+            @apply w-fit max-w-[78%] rounded-[8px] border border-dark-200 bg-dark-200 px-4 py-3 text-light-100 shadow-[0_8px_24px_rgba(0,0,0,0.24)] max-sm:max-w-[92%];
+        }
+
+        .chat-input-row {
+            @apply flex gap-3 border-t border-dark-200 p-5 max-sm:flex-col max-sm:p-4;
+        }
+
+        .chat-input {
+            @apply min-h-12 flex-1 rounded-[6px] border border-dark-200 bg-background px-4 text-light-100 outline-none transition placeholder:text-light-200 focus:border-primary/70;
+        }
+
+        .chat-send-btn {
+            @apply flex min-h-12 items-center justify-center gap-2 rounded-[6px] bg-primary px-5 font-semibold text-black transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-dark-200 disabled:text-light-200 max-sm:w-full;
         }
     }
 }

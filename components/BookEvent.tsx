@@ -1,21 +1,25 @@
 'use client';
 
 import {useState} from "react";
+import Link from "next/link";
 import {createBooking} from "@/lib/actions/booking.actions";
 import posthog from "posthog-js";
+import {MessageCircle} from "lucide-react";
 
 const BookEvent = ({ eventId, slug }: { eventId: number, slug: string;}) => {
     const [email, setEmail] = useState('');
     const [submitted, setSubmitted] = useState(false);
+    const [alreadyBooked, setAlreadyBooked] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        const { success } = await createBooking({ eventId, slug, email });
+        const { success, alreadyBooked } = await createBooking({ eventId, slug, email });
 
         if(success) {
             setSubmitted(true);
-            posthog.capture('event_booked', { eventId, slug, email })
+            setAlreadyBooked(alreadyBooked);
+            posthog.capture(alreadyBooked ? 'event_booking_exists' : 'event_booked', { eventId, slug, email })
         } else {
             console.error('Booking creation failed')
             posthog.captureException('Booking creation failed')
@@ -25,7 +29,14 @@ const BookEvent = ({ eventId, slug }: { eventId: number, slug: string;}) => {
     return (
         <div id="book-event">
             {submitted ? (
-                <p className="text-sm">Thank you for signing up!</p>
+                <div className="flex items-center gap-2">
+                    <Link href="/messages" aria-label="Open messages" className="message-icon-link">
+                        <MessageCircle aria-hidden="true" className="size-5" />
+                    </Link>
+                    <p className="text-sm">
+                        {alreadyBooked ? 'You already booked this event!' : 'Thank you for signing up!'}
+                    </p>
+                </div>
             ): (
                 <form onSubmit={handleSubmit}>
                     <div>
