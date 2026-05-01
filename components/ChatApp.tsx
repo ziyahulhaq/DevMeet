@@ -3,14 +3,49 @@
 import {FormEvent, useEffect, useMemo, useRef, useState} from "react";
 import {Send} from "lucide-react";
 import {io, type Socket} from "socket.io-client";
+import {USER_EMAIL_STORAGE_KEY} from "@/lib/constants";
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL ?? "http://localhost:8001";
 
-const ChatApp = () => {
+type ChatAppProps = {
+    userEmail?: string;
+};
+
+type StoredMessage = {
+    id?: number;
+    user_email?: string;
+    message?: string;
+};
+
+const ChatApp = ({userEmail}: ChatAppProps) => {
     const socketRef = useRef<Socket | null>(null);
     const [message, setMessage] = useState("");
-    const [messages, setMessages] = useState<string[]>([]);
+    const [email, setEmail] = useState(() => {
+        const normalizedUserEmail = userEmail?.trim().toLowerCase();
+        if (normalizedUserEmail) return normalizedUserEmail;
+        return "";
+    });
+    const [messages, setMessages] = useState<StoredMessage[]>([]);
     const [isConnected, setIsConnected] = useState(false);
+    const [hasLoadedEmail, setHasLoadedEmail] = useState(Boolean(userEmail?.trim()));
+
+    useEffect(() => {
+        const frameId = window.requestAnimationFrame(() => {
+            if (userEmail) {
+                const normalizedUserEmail = userEmail.trim().toLowerCase();
+                localStorage.setItem(USER_EMAIL_STORAGE_KEY, normalizedUserEmail);
+                setEmail(normalizedUserEmail);
+                setHasLoadedEmail(true);
+                return;
+            }
+
+            const storedEmail = localStorage.getItem(USER_EMAIL_STORAGE_KEY);
+            if (storedEmail) setEmail(storedEmail);
+            setHasLoadedEmail(true);
+        });
+
+        return () => window.cancelAnimationFrame(frameId);
+    }, [userEmail]);
 
     useEffect(() => {
         const socket = io(SOCKET_URL);
@@ -18,8 +53,9 @@ const ChatApp = () => {
 
         const onConnect = () => setIsConnected(true);
         const onDisconnect = () => setIsConnected(false);
-        const onReceiveMessage = (data: unknown) => {
-            setMessages((prev) => [...prev, typeof data === "string" ? data : String(data)]);
+        const onReceiveMessage = (data: StoredMessage | string) => {
+            const nextMessage = typeof data === "string" ? {message: data} : data;
+            setMessages((prev) => [...prev, nextMessage]);
         };
 
         socket.on("connect", onConnect);
@@ -35,15 +71,24 @@ const ChatApp = () => {
         };
     }, []);
 
-    const canSend = useMemo(() => message.trim().length > 0, [message]);
+    const normalizedEmail = useMemo(() => email.trim().toLowerCase(), [email]);
+    const canSend = useMemo(
+        () => message.trim().length > 0 && normalizedEmail.length > 0,
+        [message, normalizedEmail]
+    );
 
     const sendMessage = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
 
         const trimmed = message.trim();
-        if (!trimmed) return;
+        if (!trimmed || !normalizedEmail) return;
 
-        socketRef.current?.emit("send-message", trimmed);
+        localStorage.setItem(USER_EMAIL_STORAGE_KEY, normalizedEmail);
+
+        socketRef.current?.emit("send-message", {
+            email: normalizedEmail,
+            message: trimmed,
+        });
         setMessage("");
     };
 
@@ -62,13 +107,24 @@ const ChatApp = () => {
                 </div>
             </header>
 
+            {normalizedEmail ? (
+                <div className="chat-identity" aria-label={`Messaging as ${normalizedEmail}`}>
+                    Messaging as <strong>{normalizedEmail}</strong>
+                </div>
+            ) : null}
+
             <div className="chat-messages" aria-live="polite">
-                {messages.length === 0 ? (
+                {!hasLoadedEmail ? (
+                    <p className="chat-empty">Loading your chat...</p>
+                ) : !normalizedEmail ? (
+                    <p className="chat-empty">Please submit your email on an event page before opening chat.</p>
+                ) : messages.length === 0 ? (
                     <p className="chat-empty">No messages yet. Start the conversation.</p>
                 ) : (
                     messages.map((msg, idx) => (
-                        <div className="chat-bubble" key={`${idx}-${msg}`}>
-                            {msg}
+                        <div className="chat-bubble" key={msg.id ?? `${idx}-${msg.message}`}>
+                            {msg.user_email ? <strong>{msg.user_email}: </strong> : null}
+                            {msg.message}
                         </div>
                     ))
                 )}
@@ -80,6 +136,7 @@ const ChatApp = () => {
                     onChange={(event) => setMessage(event.target.value)}
                     placeholder="Type a message..."
                     className="chat-input"
+                    disabled={!normalizedEmail}
                 />
                 <button type="submit" disabled={!canSend} className="chat-send-btn">
                     <Send aria-hidden="true" className="size-5" />

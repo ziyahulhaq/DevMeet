@@ -5,6 +5,7 @@ import Link from "next/link";
 import {createBooking} from "@/lib/actions/booking.actions";
 import posthog from "posthog-js";
 import {MessageCircle} from "lucide-react";
+import {USER_EMAIL_STORAGE_KEY} from "@/lib/constants";
 
 const BookEvent = ({ eventId, slug }: { eventId: number, slug: string;}) => {
     const [email, setEmail] = useState('');
@@ -14,12 +15,14 @@ const BookEvent = ({ eventId, slug }: { eventId: number, slug: string;}) => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        const { success, alreadyBooked } = await createBooking({ eventId, slug, email });
+        const normalizedEmail = email.trim().toLowerCase();
+        const { success, alreadyBooked } = await createBooking({ eventId, slug, email: normalizedEmail });
 
         if(success) {
+            localStorage.setItem(USER_EMAIL_STORAGE_KEY, normalizedEmail);
             setSubmitted(true);
             setAlreadyBooked(alreadyBooked);
-            posthog.capture(alreadyBooked ? 'event_booking_exists' : 'event_booked', { eventId, slug, email })
+            posthog.capture(alreadyBooked ? 'event_booking_exists' : 'event_booked', { eventId, slug, email: normalizedEmail })
         } else {
             console.error('Booking creation failed')
             posthog.captureException('Booking creation failed')
@@ -47,6 +50,7 @@ const BookEvent = ({ eventId, slug }: { eventId: number, slug: string;}) => {
                             onChange={(e) => setEmail(e.target.value)}
                             id="email"
                             placeholder="Enter your email address"
+                            required
                         />
                     </div>
 

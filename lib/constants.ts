@@ -7,6 +7,8 @@ export type EventItem = {
   time: string; // e.g., "09:00 AM"
 };
 
+export const USER_EMAIL_STORAGE_KEY = "devEvent:userEmail";
+
 export const events: EventItem[] = [
   {
     image: "/images/event1.png",
