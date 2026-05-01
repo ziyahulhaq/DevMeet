@@ -276,30 +276,31 @@
     }
 
     #messages-page {
-        @apply fixed inset-0 z-[100] flex h-screen w-screen overflow-hidden bg-background;
+        @apply fixed inset-0 z-[100] flex h-screen w-screen overflow-hidden bg-background max-md:flex-col;
         background:
             radial-gradient(circle at 90% 85%, rgba(89, 222, 202, 0.18), transparent 30%),
             radial-gradient(circle at 35% 20%, rgba(148, 234, 255, 0.14), transparent 36%),
             linear-gradient(115deg, #030708 0%, #0d161a 45%, #182830 100%);
+        height: 100dvh;
 
         .messages-sidebar {
-            @apply w-[220px] shrink-0 border-r border-dark-200 bg-dark-100/95 backdrop-blur-xl max-sm:w-[88px];
+            @apply flex w-[220px] shrink-0 flex-col border-r border-dark-200 bg-dark-100/95 backdrop-blur-xl max-md:h-18 max-md:w-full max-md:flex-row max-md:items-center max-md:justify-between max-md:border-r-0 max-md:border-b;
         }
 
         .messages-brand {
-            @apply flex h-20 items-center gap-3 border-b border-white/10 px-6 max-sm:justify-center max-sm:px-3;
+            @apply flex h-20 items-center gap-3 border-b border-white/10 px-6 max-md:h-full max-md:border-b-0 max-md:px-4;
 
             span {
-                @apply text-2xl font-bold italic tracking-normal text-white max-sm:hidden;
+                @apply text-2xl font-bold italic tracking-normal text-white max-[420px]:hidden;
             }
         }
 
         .messages-avatar {
-            @apply ml-auto flex size-8 items-center justify-center rounded-full border border-primary/40 bg-dark-200 text-sm font-bold text-primary shadow-[0_0_14px_rgba(89,222,202,0.25)] max-sm:hidden;
+            @apply ml-auto flex size-8 items-center justify-center rounded-full border border-primary/40 bg-dark-200 text-sm font-bold text-primary shadow-[0_0_14px_rgba(89,222,202,0.25)] max-md:ml-2 max-sm:hidden;
         }
 
         .messages-back {
-            @apply mx-4 mt-5 flex h-11 items-center gap-2 rounded-[6px] border border-dark-200 px-4 text-light-100 transition hover:border-primary/50 hover:bg-dark-200 hover:text-primary max-sm:mx-auto max-sm:size-11 max-sm:justify-center max-sm:px-0;
+            @apply mx-4 mt-5 flex h-11 items-center gap-2 rounded-[6px] border border-dark-200 px-4 text-light-100 transition hover:border-primary/50 hover:bg-dark-200 hover:text-primary max-md:mx-4 max-md:mt-0 max-sm:size-11 max-sm:justify-center max-sm:px-0;
 
             span {
                 @apply max-sm:hidden;
@@ -307,15 +308,15 @@
         }
 
         .messages-workspace {
-            @apply relative flex min-h-full flex-1 items-center justify-center p-8 max-sm:p-4;
+            @apply relative flex min-h-0 flex-1 items-center justify-center p-8 max-md:p-4 max-sm:p-0;
         }
 
         .chat-card {
-            @apply flex h-[min(720px,calc(100vh-64px))] w-full max-w-4xl flex-col overflow-hidden rounded-[8px] border border-dark-200 bg-dark-100/90 shadow-[0_4px_40px_0_rgba(0,0,0,0.4)] backdrop-blur-xl;
+            @apply flex h-[min(720px,calc(100dvh-64px))] w-full max-w-4xl flex-col overflow-hidden rounded-[8px] border border-dark-200 bg-dark-100/90 shadow-[0_4px_40px_0_rgba(0,0,0,0.4)] backdrop-blur-xl max-md:h-full max-sm:rounded-none max-sm:border-x-0 max-sm:border-b-0;
         }
 
         .chat-header {
-            @apply flex items-center justify-between gap-4 border-b border-dark-200 px-6 py-5 max-sm:px-4;
+            @apply flex items-center justify-between gap-4 border-b border-dark-200 px-6 py-5 max-sm:px-4 max-sm:py-4;
 
             h1 {
                 @apply bg-none text-xl font-bold text-white;
@@ -327,7 +328,7 @@
         }
 
         .chat-status {
-            @apply rounded-[6px] border border-red-400/30 bg-red-400/10 px-3 py-1 text-xs font-semibold text-red-200;
+            @apply shrink-0 rounded-[6px] border border-red-400/30 bg-red-400/10 px-3 py-1 text-xs font-semibold text-red-200;
         }
 
         .chat-status.connected {
@@ -335,7 +336,7 @@
         }
 
         .chat-messages {
-            @apply flex flex-1 flex-col gap-3 overflow-y-auto px-6 py-5 max-sm:px-4;
+            @apply flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-6 py-5 max-sm:px-4 max-sm:py-4;
         }
 
         .chat-empty {
@@ -343,19 +344,24 @@
         }
 
         .chat-bubble {
-            @apply w-fit max-w-[78%] rounded-[8px] border border-dark-200 bg-dark-200 px-4 py-3 text-light-100 shadow-[0_8px_24px_rgba(0,0,0,0.24)] max-sm:max-w-[92%];
+            @apply w-fit max-w-[78%] rounded-[8px] border border-dark-200 bg-dark-200 px-4 py-3 text-light-100 shadow-[0_8px_24px_rgba(0,0,0,0.24)] max-sm:max-w-[92%] max-sm:text-sm;
+            overflow-wrap: anywhere;
         }
 
         .chat-input-row {
-            @apply flex gap-3 border-t border-dark-200 p-5 max-sm:flex-col max-sm:p-4;
+            @apply flex gap-3 border-t border-dark-200 p-5 max-sm:p-3;
         }
 
         .chat-input {
-            @apply min-h-12 flex-1 rounded-[6px] border border-dark-200 bg-background px-4 text-light-100 outline-none transition placeholder:text-light-200 focus:border-primary/70;
+            @apply min-h-12 min-w-0 flex-1 rounded-[6px] border border-dark-200 bg-background px-4 text-light-100 outline-none transition placeholder:text-light-200 focus:border-primary/70 max-sm:text-sm;
         }
 
         .chat-send-btn {
-            @apply flex min-h-12 items-center justify-center gap-2 rounded-[6px] bg-primary px-5 font-semibold text-black transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-dark-200 disabled:text-light-200 max-sm:w-full;
+            @apply flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-[6px] bg-primary px-5 font-semibold text-black transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-dark-200 disabled:text-light-200 max-sm:size-12 max-sm:px-0;
+
+            span {
+                @apply max-sm:hidden;
+            }
         }
     }
 }
