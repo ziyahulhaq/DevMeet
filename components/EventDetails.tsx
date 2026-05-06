@@ -32,9 +32,7 @@ const EventTags = ({ tags }: { tags: string[] }) => (
     </div>
 )
 
-const EventDetails = async ({ params }: { params: Promise<string> }) => {
-    const slug = await params;
-
+const EventDetails = async ({ slug }: { slug: string }) => {
     let event;
     try {
         event = await getEventBySlug(slug);

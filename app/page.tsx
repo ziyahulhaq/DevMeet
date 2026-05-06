@@ -6,6 +6,8 @@ import sql from "@/lib/db";
 import {connection} from "next/server";
 import {Suspense} from "react";
 
+export const runtime = "edge";
+
 const FeaturedEvents = async () => {
     await connection();
     const rows = await sql`SELECT * FROM events ORDER BY id DESC`;

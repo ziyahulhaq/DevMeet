@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
-
 import { mapEventRow } from '@/database';
 import sql from '@/lib/db';
+
+export const runtime = 'edge';
 
 // Define route params type for type safety
 type RouteParams = {
@@ -15,16 +15,16 @@ type RouteParams = {
  * Fetches a single events by its slug
  */
 export async function GET(
-  _req: NextRequest,
+  _req: Request,
   { params }: RouteParams
-): Promise<NextResponse> {
+): Promise<Response> {
   try {
     // Await and extract slug from params
     const { slug } = await params;
 
     // Validate slug parameter
     if (!slug || typeof slug !== 'string' || slug.trim() === '') {
-      return NextResponse.json(
+      return Response.json(
         { message: 'Invalid or missing slug parameter' },
         { status: 400 }
       );
@@ -39,14 +39,14 @@ export async function GET(
 
     // Handle events not found
     if (!event) {
-      return NextResponse.json(
+      return Response.json(
         { message: `Event with slug '${sanitizedSlug}' not found` },
         { status: 404 }
       );
     }
 
     // Return successful response with events data
-    return NextResponse.json(
+    return Response.json(
       { message: 'Event fetched successfully', event },
       { status: 200 }
     );
@@ -60,21 +60,21 @@ export async function GET(
     if (error instanceof Error) {
       // Handle database connection errors
       if (error.message.includes('DATABASE_URL')) {
-        return NextResponse.json(
+        return Response.json(
           { message: 'Database configuration error' },
           { status: 500 }
         );
       }
 
       // Return generic error with error message
-      return NextResponse.json(
+      return Response.json(
         { message: 'Failed to fetch events', error: error.message },
         { status: 500 }
       );
     }
 
     // Handle unknown errors
-    return NextResponse.json(
+    return Response.json(
       { message: 'An unexpected error occurred' },
       { status: 500 }
     );

@@ -1,8 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
-
-import cloudinary from "@/lib/cloudinary";
 import sql from "@/lib/db";
 import { mapEventRow } from "@/database";
+
+export const runtime = "edge";
 
 const REQUIRED_TEXT_FIELDS = [
   "title",
@@ -19,9 +18,21 @@ const REQUIRED_TEXT_FIELDS = [
 
 type CloudinaryError = {
   http_code?: number;
+  httpCode?: number;
   message?: string;
   name?: string;
 };
+
+type CloudinaryUploadResponse = {
+  secure_url?: string | null;
+  error?: {
+    message?: string;
+  };
+};
+
+function jsonResponse(body: unknown, init?: ResponseInit) {
+  return Response.json(body, init);
+}
 
 function getTextField(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -79,8 +90,10 @@ function normalizeAgenda(value: string) {
 
 function getCloudinaryErrorDetails(error: unknown) {
   if (error instanceof Error) {
+    const cloudinaryError = error as Error & CloudinaryError;
+
     return {
-      httpCode: 500,
+      httpCode: cloudinaryError.httpCode ?? cloudinaryError.http_code ?? 500,
       message: error.message,
     };
   }
@@ -88,7 +101,7 @@ function getCloudinaryErrorDetails(error: unknown) {
   if (error && typeof error === "object") {
     const cloudinaryError = error as CloudinaryError;
     const message = cloudinaryError.message ?? "Unknown Cloudinary error";
-    const httpCode = cloudinaryError.http_code ?? 500;
+    const httpCode = cloudinaryError.httpCode ?? cloudinaryError.http_code ?? 500;
 
     if (httpCode === 403) {
       return {
@@ -108,47 +121,87 @@ function getCloudinaryErrorDetails(error: unknown) {
   };
 }
 
-async function uploadEventImage(buffer: Buffer) {
-  return new Promise<string>((resolve, reject) => {
-    const onUploadComplete = (
-      error: unknown,
-      result?: { secure_url?: string | null }
-    ) => {
-      if (error) {
-        reject(error);
-        return;
-      }
+async function sha1Hex(value: string) {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-1", bytes);
 
-      if (!result?.secure_url) {
-        reject(new Error("Cloudinary upload completed without a secure URL."));
-        return;
-      }
-
-      if (!result.secure_url.startsWith("https://res.cloudinary.com/")) {
-        reject(new Error("Cloudinary returned an unexpected image URL."));
-        return;
-      }
-
-      resolve(result.secure_url);
-    };
-
-    const uploadPreset = process.env.CLOUDINARY_UPLOAD_PRESET;
-    const stream = uploadPreset
-      ? cloudinary.uploader.unsigned_upload_stream(uploadPreset, {
-          resource_type: "image",
-          folder: "DevEvent",
-        }, onUploadComplete)
-      : cloudinary.uploader.upload_stream(
-          { resource_type: "image", folder: "DevEvent" },
-          onUploadComplete
-        );
-
-    stream.on("error", reject);
-    stream.end(buffer);
-  });
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
 }
 
-export async function POST(req: NextRequest) {
+async function createCloudinarySignature(params: Record<string, string>) {
+  const apiSecret = process.env.CLOUDINARY_API_SECRET;
+
+  if (!apiSecret) {
+    throw new Error("Cloudinary API secret is not configured.");
+  }
+
+  const payload = Object.entries(params)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, value]) => `${key}=${value}`)
+    .join("&");
+
+  return sha1Hex(`${payload}${apiSecret}`);
+}
+
+async function uploadEventImage(file: File) {
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+
+  if (!cloudName) {
+    throw new Error("Cloudinary cloud name is not configured.");
+  }
+
+  const uploadPreset = process.env.CLOUDINARY_UPLOAD_PRESET;
+  const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
+  const uploadForm = new FormData();
+
+  uploadForm.append("file", file);
+  uploadForm.append("folder", "DevEvent");
+
+  if (uploadPreset) {
+    uploadForm.append("upload_preset", uploadPreset);
+  } else {
+    const apiKey = process.env.CLOUDINARY_API_KEY;
+
+    if (!apiKey) {
+      throw new Error("Cloudinary API key is not configured.");
+    }
+
+    const timestamp = Math.floor(Date.now() / 1000).toString();
+    const signedParams = {
+      folder: "DevEvent",
+      timestamp,
+    };
+
+    uploadForm.append("api_key", apiKey);
+    uploadForm.append("timestamp", timestamp);
+    uploadForm.append("signature", await createCloudinarySignature(signedParams));
+  }
+
+  const response = await fetch(uploadUrl, {
+    method: "POST",
+    body: uploadForm,
+  });
+  const result = (await response.json().catch(() => ({}))) as CloudinaryUploadResponse;
+
+  if (!response.ok) {
+    const message = result.error?.message ?? "Cloudinary upload failed.";
+    throw Object.assign(new Error(message), { httpCode: response.status });
+  }
+
+  if (!result.secure_url) {
+    throw new Error("Cloudinary upload completed without a secure URL.");
+  }
+
+  if (!result.secure_url.startsWith("https://res.cloudinary.com/")) {
+    throw new Error("Cloudinary returned an unexpected image URL.");
+  }
+
+  return result.secure_url;
+}
+
+export async function POST(req: Request) {
   try {
     const contentType = req.headers.get("content-type") ?? "";
 
@@ -156,7 +209,7 @@ export async function POST(req: NextRequest) {
       !contentType.includes("multipart/form-data") &&
       !contentType.includes("application/x-www-form-urlencoded")
     ) {
-      return NextResponse.json(
+      return jsonResponse(
         {
           message: "Unsupported Content-Type",
           error:
@@ -173,7 +226,7 @@ export async function POST(req: NextRequest) {
     );
 
     if (missingFields.length > 0) {
-      return NextResponse.json(
+      return jsonResponse(
         {
           message: "Missing required fields",
           missingFields,
@@ -185,7 +238,7 @@ export async function POST(req: NextRequest) {
     const file = formData.get("image");
 
     if (!(file instanceof File) || file.size === 0) {
-      return NextResponse.json(
+      return jsonResponse(
         { message: "Image file is required" },
         { status: 400 }
       );
@@ -201,16 +254,13 @@ export async function POST(req: NextRequest) {
       const message =
         error instanceof Error ? error.message : "Invalid JSON data format";
 
-      return NextResponse.json({ message }, { status: 400 });
+      return jsonResponse({ message }, { status: 400 });
     }
-
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
 
     let image: string;
 
     try {
-      image = await uploadEventImage(buffer);
+      image = await uploadEventImage(file);
     } catch (error) {
       console.error("Cloudinary upload failed:", getCloudinaryErrorDetails(error));
       throw error;
@@ -256,7 +306,7 @@ export async function POST(req: NextRequest) {
 
     const createdEvent = mapEventRow(createdRows[0]);
 
-    return NextResponse.json(
+    return jsonResponse(
       { message: "Event created successfully", event: createdEvent },
       { status: 201 }
     );
@@ -265,7 +315,7 @@ export async function POST(req: NextRequest) {
 
     console.error(error);
 
-    return NextResponse.json(
+    return jsonResponse(
       { message: "Event Creation Failed", error: message },
       { status: httpCode === 403 ? 502 : 500 }
     );
@@ -277,7 +327,7 @@ export async function GET() {
     const rows = await sql`SELECT * FROM events ORDER BY id DESC`;
     const events = rows.map(mapEventRow);
 
-    return NextResponse.json(
+    return jsonResponse(
       { message: "Events fetched successfully", events },
       { status: 200 }
     );
@@ -285,7 +335,7 @@ export async function GET() {
     const message =
       error instanceof Error ? error.message : "Unknown error while fetching events";
 
-    return NextResponse.json(
+    return jsonResponse(
       { message: "Event fetching failed", error: message },
       { status: 500 }
     );
