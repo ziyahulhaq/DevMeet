@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import cloudinary from "@/lib/cloudinary";
-import pool from "@/lib/db";
+import sql from "@/lib/db";
 import { mapEventRow } from "@/database";
 
 const REQUIRED_TEXT_FIELDS = [
@@ -218,8 +218,8 @@ export async function POST(req: NextRequest) {
 
     const title = getTextField(formData, "title");
     const slug = getTextField(formData, "slug") || createSlug(title);
-    const result = await pool.query(
-      `INSERT INTO events (
+    const createdRows = await sql`
+      INSERT INTO events (
         title,
         slug,
         description,
@@ -235,27 +235,26 @@ export async function POST(req: NextRequest) {
         tags,
         agenda
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-      RETURNING *`,
-      [
-        title,
-        slug,
-        getTextField(formData, "description"),
-        getTextField(formData, "overview"),
-        getTextField(formData, "venue"),
-        getTextField(formData, "location"),
-        getTextField(formData, "date"),
-        getTextField(formData, "time"),
-        getTextField(formData, "mode"),
-        getTextField(formData, "audience"),
-        getTextField(formData, "organizer"),
-        image,
-        tags,
-        agenda,
-      ]
-    );
+      VALUES (
+        ${title},
+        ${slug},
+        ${getTextField(formData, "description")},
+        ${getTextField(formData, "overview")},
+        ${getTextField(formData, "venue")},
+        ${getTextField(formData, "location")},
+        ${getTextField(formData, "date")},
+        ${getTextField(formData, "time")},
+        ${getTextField(formData, "mode")},
+        ${getTextField(formData, "audience")},
+        ${getTextField(formData, "organizer")},
+        ${image},
+        ${tags},
+        ${agenda}
+      )
+      RETURNING *
+    `;
 
-    const createdEvent = mapEventRow(result.rows[0]);
+    const createdEvent = mapEventRow(createdRows[0]);
 
     return NextResponse.json(
       { message: "Event created successfully", event: createdEvent },
@@ -275,8 +274,8 @@ export async function POST(req: NextRequest) {
 
 export async function GET() {
   try {
-    const result = await pool.query("SELECT * FROM events ORDER BY id DESC");
-    const events = result.rows.map(mapEventRow);
+    const rows = await sql`SELECT * FROM events ORDER BY id DESC`;
+    const events = rows.map(mapEventRow);
 
     return NextResponse.json(
       { message: "Events fetched successfully", events },

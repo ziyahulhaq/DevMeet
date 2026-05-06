@@ -1,12 +1,12 @@
 'use server';
 
 import { mapEventRow } from "@/database";
-import pool from "@/lib/db";
+import sql from "@/lib/db";
 
 export const getEvents = async () => {
-    const result = await pool.query("SELECT * FROM events ORDER BY id DESC");
+    const rows = await sql`SELECT * FROM events ORDER BY id DESC`;
 
-    return result.rows.map(mapEventRow);
+    return rows.map(mapEventRow);
 }
 
 export const getEventBySlug = async (slug: string) => {
@@ -14,36 +14,29 @@ export const getEventBySlug = async (slug: string) => {
         return null;
     }
 
-    const result = await pool.query(
-        "SELECT * FROM events WHERE slug = $1",
-        [slug.trim().toLowerCase()]
-    );
+    const rows = await sql`SELECT * FROM events WHERE slug = ${slug.trim().toLowerCase()}`;
 
-    return result.rows[0] ? mapEventRow(result.rows[0]) : null;
+    return rows[0] ? mapEventRow(rows[0]) : null;
 }
 
 export const getSimilarEventsBySlug = async (slug: string) => {
     try {
-        const eventResult = await pool.query(
-            "SELECT id, tags FROM events WHERE slug = $1",
-            [slug]
-        );
-        const event = eventResult.rows[0] ? mapEventRow(eventResult.rows[0]) : null;
+        const eventRows = await sql`SELECT id, tags FROM events WHERE slug = ${slug}`;
+        const event = eventRows[0] ? mapEventRow(eventRows[0]) : null;
 
         if (!event || event.tags.length === 0) {
             return [];
         }
 
-        const similarEvents = await pool.query(
-            `SELECT *
+        const similarEvents = await sql`
+            SELECT *
              FROM events
-             WHERE id <> $1
-               AND to_jsonb(tags) ?| $2::text[]
-             ORDER BY id DESC`,
-            [event.id, event.tags]
-        );
+             WHERE id <> ${event.id}
+               AND to_jsonb(tags) ?| ${event.tags}::text[]
+             ORDER BY id DESC
+        `;
 
-        return similarEvents.rows.map(mapEventRow);
+        return similarEvents.map(mapEventRow);
     } catch {
         return [];
     }

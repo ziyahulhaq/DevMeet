@@ -1,20 +1,15 @@
 import ExploreBtn from "@/components/ExploreBtn";
 import EventCard from "@/components/EventCard";
-import {IEvent} from "@/database";
+import {IEvent, mapEventRow} from "@/database";
+import sql from "@/lib/db";
 // import {getEvents} from "@/lib/actions/event.actions";
-// import {connection} from "next/server";
+import {connection} from "next/server";
 import {Suspense} from "react";
-import {cacheLife} from "next/cache";
-
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
-
 
 const FeaturedEvents = async () => {
-       'use cache';
-    cacheLife('hours')
-    const response = await fetch(`${BASE_URL}/api/events`);
-    const { events } = await response.json();
-    // await connection();
+    await connection();
+    const rows = await sql`SELECT * FROM events ORDER BY id DESC`;
+    const events = rows.map(mapEventRow);
 
     // const events = await getEvents();
 

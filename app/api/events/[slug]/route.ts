@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { mapEventRow } from '@/database';
-import pool from '@/lib/db';
+import sql from '@/lib/db';
 
 // Define route params type for type safety
 type RouteParams = {
@@ -34,11 +34,8 @@ export async function GET(
     const sanitizedSlug = slug.trim().toLowerCase();
 
     // Query events by slug
-    const result = await pool.query(
-      "SELECT * FROM events WHERE slug = $1",
-      [sanitizedSlug]
-    );
-    const event = result.rows[0] ? mapEventRow(result.rows[0]) : null;
+    const rows = await sql`SELECT * FROM events WHERE slug = ${sanitizedSlug}`;
+    const event = rows[0] ? mapEventRow(rows[0]) : null;
 
     // Handle events not found
     if (!event) {
