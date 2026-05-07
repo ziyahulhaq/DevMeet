@@ -1,24 +1,31 @@
 'use server';
 
-import sql from "@/lib/db";
+import pool from "@/lib/db";
 
 export const createBooking = async ({ eventId, email }: { eventId: number; slug: string; email: string; }) => {
     try {
         const normalizedEmail = email.trim().toLowerCase();
-        const existingBooking = await sql`
+        const existingBookingResult = await pool.query(
+            `
             SELECT id FROM bookings
-            WHERE event_id = ${eventId} AND LOWER(email) = ${normalizedEmail}
+            WHERE event_id = $1 AND LOWER(email) = $2
             LIMIT 1
-        `;
+        `,
+            [eventId, normalizedEmail]
+        );
+        const existingBooking = existingBookingResult.rows;
 
         if (existingBooking.length > 0) {
             return { success: true, alreadyBooked: true };
         }
 
-        await sql`
+        await pool.query(
+            `
             INSERT INTO bookings (event_id, email)
-            VALUES (${eventId}, ${normalizedEmail})
-        `;
+            VALUES ($1, $2)
+        `,
+            [eventId, normalizedEmail]
+        );
 
         return { success: true, alreadyBooked: false };
     } catch (e) {

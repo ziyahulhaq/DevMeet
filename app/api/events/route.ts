@@ -1,7 +1,7 @@
-import sql from "@/lib/db";
+import pool from "@/lib/db";
 import { mapEventRow } from "@/database";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 const REQUIRED_TEXT_FIELDS = [
   "title",
@@ -268,7 +268,8 @@ export async function POST(req: Request) {
 
     const title = getTextField(formData, "title");
     const slug = getTextField(formData, "slug") || createSlug(title);
-    const createdRows = await sql`
+    const createdResult = await pool.query(
+      `
       INSERT INTO events (
         title,
         slug,
@@ -286,23 +287,41 @@ export async function POST(req: Request) {
         agenda
       )
       VALUES (
-        ${title},
-        ${slug},
-        ${getTextField(formData, "description")},
-        ${getTextField(formData, "overview")},
-        ${getTextField(formData, "venue")},
-        ${getTextField(formData, "location")},
-        ${getTextField(formData, "date")},
-        ${getTextField(formData, "time")},
-        ${getTextField(formData, "mode")},
-        ${getTextField(formData, "audience")},
-        ${getTextField(formData, "organizer")},
-        ${image},
-        ${tags},
-        ${agenda}
+        $1,
+        $2,
+        $3,
+        $4,
+        $5,
+        $6,
+        $7,
+        $8,
+        $9,
+        $10,
+        $11,
+        $12,
+        $13::text[],
+        $14::text[]
       )
       RETURNING *
-    `;
+    `,
+      [
+        title,
+        slug,
+        getTextField(formData, "description"),
+        getTextField(formData, "overview"),
+        getTextField(formData, "venue"),
+        getTextField(formData, "location"),
+        getTextField(formData, "date"),
+        getTextField(formData, "time"),
+        getTextField(formData, "mode"),
+        getTextField(formData, "audience"),
+        getTextField(formData, "organizer"),
+        image,
+        tags,
+        agenda,
+      ]
+    );
+    const createdRows = createdResult.rows;
 
     const createdEvent = mapEventRow(createdRows[0]);
 
@@ -324,7 +343,8 @@ export async function POST(req: Request) {
 
 export async function GET() {
   try {
-    const rows = await sql`SELECT * FROM events ORDER BY id DESC`;
+    const result = await pool.query("SELECT * FROM events ORDER BY id DESC");
+    const rows = result.rows;
     const events = rows.map(mapEventRow);
 
     return jsonResponse(

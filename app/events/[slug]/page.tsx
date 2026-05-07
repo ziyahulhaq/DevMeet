@@ -1,7 +1,8 @@
 import {Suspense} from "react";
 import EventDetails from "@/components/EventDetails";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const EventDetailsPage = async ({ params }: { params: Promise<{ slug: string }>}) => {
     const { slug } = await params;

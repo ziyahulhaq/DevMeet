@@ -1,16 +1,16 @@
 import ExploreBtn from "@/components/ExploreBtn";
 import EventCard from "@/components/EventCard";
 import {IEvent, mapEventRow} from "@/database";
-import sql from "@/lib/db";
+import pool from "@/lib/db";
 // import {getEvents} from "@/lib/actions/event.actions";
-import {connection} from "next/server";
 import {Suspense} from "react";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const FeaturedEvents = async () => {
-    await connection();
-    const rows = await sql`SELECT * FROM events ORDER BY id DESC`;
+    const result = await pool.query("SELECT * FROM events ORDER BY id DESC");
+    const rows = result.rows;
     const events = rows.map(mapEventRow);
 
     // const events = await getEvents();

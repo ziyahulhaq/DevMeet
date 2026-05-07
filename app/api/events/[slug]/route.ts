@@ -1,7 +1,7 @@
 import { mapEventRow } from '@/database';
-import sql from '@/lib/db';
+import pool from '@/lib/db';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 
 // Define route params type for type safety
 type RouteParams = {
@@ -34,7 +34,10 @@ export async function GET(
     const sanitizedSlug = slug.trim().toLowerCase();
 
     // Query events by slug
-    const rows = await sql`SELECT * FROM events WHERE slug = ${sanitizedSlug}`;
+    const result = await pool.query('SELECT * FROM events WHERE slug = $1', [
+      sanitizedSlug,
+    ]);
+    const rows = result.rows;
     const event = rows[0] ? mapEventRow(rows[0]) : null;
 
     // Handle events not found

@@ -1,15 +1,14 @@
 import { Server } from "socket.io";
 import http from "http";
-import pkg from "pg";
+import pg from "pg";
 
-const { Pool } = pkg;
+const { Pool } = pg;
 
 const pool = new Pool({
-  user: "postgres",
-  host: "localhost",
-  database: "sales_db2",
-  password: "password",
-  port: 5432,
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false,
+  },
 });
 
 const server = http.createServer();
@@ -35,11 +34,15 @@ io.on("connection", (socket) => {
     try {
 
       const result = await pool.query(
-        "INSERT INTO messages (user_email, message) VALUES ($1,$2) RETURNING *",
+        `
+        INSERT INTO messages (user_email, message)
+        VALUES ($1, $2)
+        RETURNING *
+      `,
         [email, message]
       );
-
-      const savedMessage = result.rows[0];
+      const rows = result.rows;
+      const savedMessage = rows[0];
 
       console.log("Saved:", savedMessage);
 

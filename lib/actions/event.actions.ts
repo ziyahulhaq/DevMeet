@@ -1,10 +1,11 @@
 'use server';
 
 import { mapEventRow } from "@/database";
-import sql from "@/lib/db";
+import pool from "@/lib/db";
 
 export const getEvents = async () => {
-    const rows = await sql`SELECT * FROM events ORDER BY id DESC`;
+    const result = await pool.query("SELECT * FROM events ORDER BY id DESC");
+    const rows = result.rows;
 
     return rows.map(mapEventRow);
 }
@@ -14,29 +15,39 @@ export const getEventBySlug = async (slug: string) => {
         return null;
     }
 
-    const rows = await sql`SELECT * FROM events WHERE slug = ${slug.trim().toLowerCase()}`;
+    const result = await pool.query("SELECT * FROM events WHERE slug = $1", [
+        slug.trim().toLowerCase(),
+    ]);
+    const rows = result.rows;
 
     return rows[0] ? mapEventRow(rows[0]) : null;
 }
 
 export const getSimilarEventsBySlug = async (slug: string) => {
     try {
-        const eventRows = await sql`SELECT id, tags FROM events WHERE slug = ${slug}`;
+        const eventResult = await pool.query("SELECT id, tags FROM events WHERE slug = $1", [
+            slug,
+        ]);
+        const eventRows = eventResult.rows;
         const event = eventRows[0] ? mapEventRow(eventRows[0]) : null;
 
         if (!event || event.tags.length === 0) {
             return [];
         }
 
-        const similarEvents = await sql`
+        const result = await pool.query(
+            `
             SELECT *
              FROM events
-             WHERE id <> ${event.id}
-               AND to_jsonb(tags) ?| ${event.tags}::text[]
+             WHERE id <> $1
+               AND to_jsonb(tags) ?| $2::text[]
              ORDER BY id DESC
-        `;
+        `,
+            [event.id, event.tags]
+        );
+        const rows = result.rows;
 
-        return similarEvents.map(mapEventRow);
+        return rows.map(mapEventRow);
     } catch {
         return [];
     }
